@@ -10,9 +10,14 @@
     "type": "git",
     "url": "https://github.com/unlight/express-json-rpc.git"
   },
+  "dependencies": {
+    "useful-functions.js": "*"
+  },
   "devDependencies": {
-    "express": "3.x"
-  }
+    "express": "3.x",
+    "wru": "*",
+    "restler": "*"
+  },
   "keywords": [
     "json",
     "rpc",
