@@ -38,8 +38,11 @@ for (var code in ERRORS) {
 	ERRORS[code]['code'] = parseInt(code, 10);
 }
 
-
 var methodCollection = {};
+
+var nullFunction = function() {
+	return null;
+};
 
 function addMethod(name, func) {
 	if (typeof methodCollection[name] == "undefined") {
@@ -53,7 +56,7 @@ function errorObject(value) {
 		extend(object, ERRORS[value]);
 		extend(object, {code: value});
 	} else {
-		throw "Cannot create errorObject. " + arguments;
+		throw "Cannot create errorObject. " + require('util').inspect(arguments);
 	}
 	return object;
 }
@@ -66,7 +69,18 @@ var respondObject = function(value) {
 	return object;
 }
 
-function writeResponse(response, output) {
+function getJsonRequest(request) {
+	var contentType = getValueR("headers.content-type", request, '');
+	if (contentType.indexOf("application/json") === 0) {
+		var jsonRequest = request.body;
+	} else {
+		throw "Other request. " + request.headers;
+	}
+	return jsonRequest;
+}
+
+function writeResponse(response, object) {
+	var output = JSON.stringify(object);
 	response.writeHead(200, {
 			'Content-Type': 'application/json',
 			'Content-Length': Buffer.byteLength(output || "")
@@ -78,12 +92,7 @@ function writeResponse(response, output) {
 function expressRequestHandler(request, response, next) {
 	response.rpc = addMethod;
 	next();
-	var contentType = getValueR("headers.content-type", request, '');
-	if (contentType.indexOf("application/json") === 0) {
-		var jsonRequest = request.body;
-	} else {
-		throw "Other request. " + request.headers;
-	}
+	var jsonRequest = getJsonRequest(request);
 	if (jsonRequest["jsonrpc"] !== "2.0") {
 		// Not a JSON-RPC request.
 		next();
@@ -95,26 +104,40 @@ function expressRequestHandler(request, response, next) {
 
 	var isNotification = (typeof id == "undefined");
 	var method = methodCollection[methodName];
-	
-	// if (typeof method != "function" && !isNotification) {
-	// 	var object = errorObject(METHOD_NOT_FOUND);
-	// 	object.id = id;
-	// 	writeResponse(response, JSON.stringify(object));
-	// 	return;
-	// }
 
-	if (isNotification) {
+	var outputResponse = writeResponse.bind(null, response);
+
+	var respond = (function() {
+		if (isNotification) {
+			return new Function();
+		}
+		var object = {id: id};
+		if (typeof method != "function") {
+			extend(object, errorObject(METHOD_NOT_FOUND));
+		}
+		return function(result) {
+			extend(object, respondObject(result));
+			outputResponse(object);
+		}
+	})();
+
+	if (typeof respond != "function") {
+		var error = errorObject(INTERNAL_ERROR);
+		outputResponse(error);
 		return;
 	}
 
-	var respond = function(result) {
-		var object = respondObject(result);
-		object.id = id;
-		var output = JSON.stringify(object);
-		writeResponse(response, output);
-	};
+	if (typeof method != "function") {
+		method = nullFunction;
+	}
+	
+	var result = method(params, respond);
+	
+	console.log('Server:', result);
 
-	method(params, respond);
+	if (typeof result !== "undefined") {
+		respond(result);
+	}
 }
 
 module.exports = function() {

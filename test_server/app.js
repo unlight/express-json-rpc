@@ -30,7 +30,12 @@ app.configure('development', function(){
 // app.get('/users', user.list);
 
 app.all('/api', function(req, res, next) {
-  console.log('call');
+
+  res.rpc('microtime', function(params, respond) {
+    var now = (new Date()).getTime() / 1000;
+    return now;
+  });
+  
   res.rpc('sum', function(params, respond) {
     console.log('Sum function, params: ', params);
     var result = params[0] + params[1];
@@ -42,8 +47,7 @@ app.all('/api', function(req, res, next) {
   res.rpc('filecontent', function(params, respond) {
     var fs = require('fs');
     fs.readFile(__filename, function(error, data) {
-      console.log('data', data);
-      respond(data);
+      respond(data.length);
     });
   });
 });
