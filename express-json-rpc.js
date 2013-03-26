@@ -50,20 +50,18 @@ function addMethod(name, func) {
 	}
 }
 
-function errorObject(value) {
-	var object = respondObject(null);
-	if (isNumeric(value) && typeof ERRORS[value] != "undefined") {
-		extend(object, ERRORS[value]);
-		extend(object, {code: value});
-	} else {
-		throw "Cannot create errorObject. " + require('util').inspect(arguments);
-	}
-	return object;
-}
-
-var respondObject = function(value) {
+var respondObject = function(value, error) {
 	var object = {jsonrpc: "2.0"};
-	if (value !== null) {
+	if (typeof value == "object" && value instanceof Error) {
+		var text = ERRORS[INTERNAL_ERROR].text;
+		object.code = INTERNAL_ERROR;
+		object.message = text;
+		object.data = value.message;
+		// object.data = value.stack;
+	} else if (isNumeric(error) && typeof ERRORS[error] != "undefined") {
+		extend(object, ERRORS[error]);
+		extend(object, {code: error});
+	} else {
 		object.result = value;
 	}
 	return object;
@@ -109,31 +107,33 @@ function expressRequestHandler(request, response, next) {
 
 	var respond = (function() {
 		if (isNotification) {
-			return new Function();
+			return nullFunction;
 		}
 		var object = {id: id};
 		if (typeof method != "function") {
-			extend(object, errorObject(METHOD_NOT_FOUND));
+			method = nullFunction;
+			extend(object, respondObject(null, METHOD_NOT_FOUND));
 		}
 		return function(result) {
 			extend(object, respondObject(result));
 			outputResponse(object);
+			respond = nullFunction;
 		}
 	})();
 
 	if (typeof respond != "function") {
-		var error = errorObject(INTERNAL_ERROR);
-		outputResponse(error);
+		outputResponse(respondObject(null, INTERNAL_ERROR));
 		return;
 	}
 
-	if (typeof method != "function") {
-		method = nullFunction;
+	try {
+		var result = method(params, respond);
+	} catch (e) {
+		console.log('Fatal error:', e.message);
+		outputResponse(respondObject(null, e));
 	}
 	
-	var result = method(params, respond);
-	
-	console.log('Server:', result);
+	console.log('Result:', result);
 
 	if (typeof result !== "undefined") {
 		respond(result);

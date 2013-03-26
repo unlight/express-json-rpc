@@ -31,6 +31,14 @@ app.configure('development', function(){
 
 app.all('/api', function(req, res, next) {
 
+  res.rpc('intMyFail', function(params, respond) {
+    respond('invalid params'); //todo;
+  });
+
+  res.rpc('intFail', function(params, respond) {
+    throw new Error("This is error.");
+  });
+
   res.rpc('microtime', function(params, respond) {
     var now = (new Date()).getTime() / 1000;
     return now;
