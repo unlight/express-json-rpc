@@ -3,6 +3,7 @@
 var getValueR = require('useful-functions.js').getValueR;
 var isNumeric = require('useful-functions.js').isNumeric;
 var extend = require('useful-functions.js').extend;
+var inherits = require('util').inherits;
 
 var PARSE_ERROR = -32700;
 var INVALID_REQUEST = -32600;
@@ -38,11 +39,44 @@ for (var code in ERRORS) {
 	ERRORS[code]['code'] = parseInt(code, 10);
 }
 
+function JsonRpcError(code, message) {
+	Error.call(this, message);
+	this.name = "JsonRpcError";
+	this.code = code || INTERNAL_ERROR;
+	this.message = message || getValueR(this.code + ".text", ERRORS, "");
+	this.toString = function() {
+		return this.name + ": " + this.message;
+	}
+}
+
+// JsonRpcError.prototype = new Error();
+// JsonRpcError.prototype.constructor = JsonRpcError;
+
+inherits(JsonRpcError, Error);
+
+function InvalidParamsError(message) {
+	JsonRpcError.call(this, INVALID_PARAMS, message);
+	this.name = "InvalidParamsError";
+}
+
+inherits(InvalidParamsError, JsonRpcError);
+
+
+function MethodNotFoundError(message) {
+	JsonRpcError.call(this, METHOD_NOT_FOUND, message);
+	this.name = "MethodNotFoundError";
+}
+inherits(MethodNotFoundError, JsonRpcError);
+
 var methodCollection = {};
 
 var nullFunction = function() {
 	return null;
 };
+
+var zeroFunction = function() {
+	return 0;
+}
 
 function addMethod(name, func) {
 	if (typeof methodCollection[name] == "undefined") {
@@ -50,19 +84,25 @@ function addMethod(name, func) {
 	}
 }
 
-var respondObject = function(value, error) {
-	var object = {jsonrpc: "2.0"};
-	if (typeof value == "object" && value instanceof Error) {
+function makeErrorObject(error) {
+	var object = {};
+	if (error instanceof JsonRpcError) {
+		object.code = error.code;
+		object.message = error.message;
+		// object.data = error.stack;
+	} else if (error instanceof Error) {
 		var text = ERRORS[INTERNAL_ERROR].text;
-		object.code = INTERNAL_ERROR;
+		error.code = INTERNAL_ERROR;
 		object.message = text;
-		object.data = value.message;
-		// object.data = value.stack;
+		if (error.message && error.message != text) {
+			object.data = error.message;
+		}
+		// object.data = error.stack;
 	} else if (isNumeric(error) && typeof ERRORS[error] != "undefined") {
 		extend(object, ERRORS[error]);
 		extend(object, {code: error});
 	} else {
-		object.result = value;
+		throw "Unrecognized: " + require('util').inspect(error);
 	}
 	return object;
 }
@@ -109,33 +149,37 @@ function expressRequestHandler(request, response, next) {
 		if (isNotification) {
 			return nullFunction;
 		}
-		var object = {id: id};
-		if (typeof method != "function") {
-			method = nullFunction;
-			extend(object, respondObject(null, METHOD_NOT_FOUND));
-		}
-		return function(result) {
-			extend(object, respondObject(result));
+		var object = {
+			id: id, 
+			jsonrpc: "2.0"
+		};
+		return function(result, error) {
+			// var error = error || errorReference;
+			if (error) {
+				object.error = makeErrorObject(error);
+			} else {
+				object.result = result;
+			}
 			outputResponse(object);
 			respond = nullFunction;
 		}
 	})();
 
-	if (typeof respond != "function") {
-		outputResponse(respondObject(null, INTERNAL_ERROR));
+	if (typeof method != "function") {
+		respond(null, METHOD_NOT_FOUND);
 		return;
 	}
 
+	var result;
 	try {
-		var result = method(params, respond);
+		result = method(params, respond);
 	} catch (e) {
-		console.log('Fatal error:', e.message);
-		outputResponse(respondObject(null, e));
+		respond(null, e);
 	}
 	
-	console.log('Result:', result);
+	// console.log('Result (Server):', result);
 
-	if (typeof result !== "undefined") {
+	if (result != null) {
 		respond(result);
 	}
 }
@@ -143,3 +187,6 @@ function expressRequestHandler(request, response, next) {
 module.exports = function() {
 	return expressRequestHandler;
 }
+
+module.exports.InvalidParamsError = InvalidParamsError;
+module.exports.MethodNotFoundError = MethodNotFoundError;

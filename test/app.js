@@ -7,6 +7,8 @@ var express = require('express')
   , http = require('http')
   , path = require('path');
 
+var expressJsonRpc = require('./..');
+
 var app = express();
 
 app.configure(function(){
@@ -15,7 +17,6 @@ app.configure(function(){
   app.use(express.bodyParser());
   app.use(express.methodOverride());
   
-  var expressJsonRpc = require('./..');
   app.use(expressJsonRpc());
 
   // app.use(app.router);
@@ -32,7 +33,9 @@ app.configure('development', function(){
 app.all('/api', function(req, res, next) {
 
   res.rpc('intMyFail', function(params, respond) {
-    respond('invalid params'); //todo;
+    // throw new Error("Foooo");
+    throw new expressJsonRpc.InvalidParamsError();
+    respond(); //todo;
   });
 
   res.rpc('intFail', function(params, respond) {
