@@ -1,17 +1,27 @@
 {
   "name": "express-json-rpc",
-  "version": "1.0.0",
+  "author": "S",
+  "version": "1.0.1",
   "description": "JSON-RPC for Express.",
-  "main": "express-json-rpc.js",
+  "main": "./express-json-rpc.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "repository": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/unlight/express-json-rpc.git"
+  },
+  "dependencies": {
+    "useful-functions.js": "*"
+  },
+  "devDependencies": {
+    "express": "3.x",
+    "wru": "*",
+    "restler": "*"
+  },
   "keywords": [
     "json",
     "rpc",
     "express"
   ],
-  "author": "S",
   "license": "MIT"
 }
