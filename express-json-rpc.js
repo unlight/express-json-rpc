@@ -4,6 +4,7 @@ var getValueR = require('useful-functions.js').getValueR;
 var isNumeric = require('useful-functions.js').isNumeric;
 var extend = require('useful-functions.js').extend;
 var inherits = require('util').inherits;
+var trim = require('useful-functions.js').trim;
 
 var PARSE_ERROR = -32700;
 var INVALID_REQUEST = -32600;
@@ -95,7 +96,7 @@ function makeErrorObject(error) {
 		error.code = INTERNAL_ERROR;
 		object.message = text;
 		if (error.message && error.message != text) {
-			object.data = error.message;
+			object.data = trim(error.message);
 		}
 		// object.data = error.stack;
 	} else if (isNumeric(error) && typeof ERRORS[error] != "undefined") {
