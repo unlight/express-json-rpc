@@ -41,7 +41,9 @@ for (var code in ERRORS) {
 }
 
 function JsonRpcError(code, message) {
+	this.constructor.prototype.__proto__ = Error.prototype
 	Error.call(this, message);
+	Error.captureStackTrace(this, this.constructor);
 	this.name = "JsonRpcError";
 	this.code = code || INTERNAL_ERROR;
 	this.message = message || getValueR(this.code + ".text", ERRORS, "");

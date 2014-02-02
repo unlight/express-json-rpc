@@ -1,7 +1,7 @@
 {
   "name": "express-json-rpc",
   "author": "S",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "JSON-RPC for Express.",
   "main": "./express-json-rpc.js",
   "scripts": {
